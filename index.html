@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Slime Jump Survival</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #e0f7fa; font-family: sans-serif; }
+        
+        /* 広告エリア */
+        #ad-top { position: fixed; top: 0; left: 0; width: 100%; height: 110px; background: #333; z-index: 100; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+        #ad-bottom { position: fixed; bottom: 0; left: 0; width: 100%; height: 70px; background: #333; z-index: 100; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+        #ad-box-1, #ad-box-2 { pointer-events: auto; }
+        
+        canvas { display: block; margin-top: 110px; background: #81d4fa; }
+        #ui { position: absolute; top: 120px; left: 0; width: 100%; text-align: center; color: #01579b; font-size: 24px; font-weight: bold; pointer-events: none; }
+        
+        #startScreen {
+            position: absolute; top: 110px; left: 0; width: 100%; height: calc(100% - 180px);
+            background: rgba(255,255,255,0.8); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50;
+        }
+        #goButton { padding: 15px 40px; font-size: 24px; background: #0288d1; border: none; border-radius: 50px; color: white; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="ad-top"><div id="ad-box-1">★</div></div>
+    <div id="ad-bottom"><div id="ad-box-2">★</div></div>
+
+    <div id="startScreen">
+        <h1 style="color:#0288d1;">SLIME JUMP</h1>
+        <p>タップで左右に移動！</p>
+        <button id="goButton">START</button>
+        <p>BEST SCORE: <span id="best-ui">0</span></p>
+    </div>
+
+    <div id="ui">SCORE: 0</div>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const ui = document.getElementById("ui");
+        const startScreen = document.getElementById("startScreen");
+        const goButton = document.getElementById("goButton");
+        const bestUi = document.getElementById("best-ui");
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight - 180;
+
+        let score = 0;
+        let bestScore = localStorage.getItem("slime_jump_best") || 0;
+        let gameActive = false;
+        let player = { x: canvas.width / 2, y: canvas.height - 50, size: 25, speed: 8, dir: 1 };
+        let obstacles = [];
+        bestUi.innerText = bestScore;
+
+        goButton.onclick = () => {
+            startScreen.style.display = "none";
+            gameActive = true;
+            score = 0;
+            obstacles = [];
+            player.x = canvas.width / 2;
+            update();
+        };
+
+        // 画面タップで進行方向を反転
+        window.addEventListener("pointerdown", () => {
+            player.dir *= -1;
+        });
+
+        function spawnObstacle() {
+            if(!gameActive) return;
+            const size = 30 + Math.random() * 20;
+            obstacles.push({ x: Math.random() * (canvas.width - size), y: -50, size: size, speed: 3 + Math.random() * 3 });
+            setTimeout(spawnObstacle, Math.max(300, 1000 - score * 10));
+        }
+
+        function update() {
+            if(!gameActive) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // プレイヤー移動
+            player.x += player.speed * player.dir;
+            if(player.x < 0 || player.x > canvas.width) player.dir *= -1; // 壁で跳ね返り
+
+            // プレイヤー描画（スライム風）
+            ctx.fillStyle = "#ff4081";
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 障害物移動・描画
+            obstacles.forEach((ob, i) => {
+                ob.y += ob.speed;
+                ctx.fillStyle = "#37474f";
+                ctx.fillRect(ob.x, ob.y, ob.size, ob.size);
+
+                // 当たり判定
+                let dx = player.x - (ob.x + ob.size / 2);
+                let dy = player.y - (ob.y + ob.size / 2);
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < player.size + ob.size / 2) {
+                    gameOver();
+                }
+
+                if(ob.y > canvas.height) {
+                    obstacles.splice(i, 1);
+                    score++;
+                    ui.innerText = "SCORE: " + score;
+                }
+            });
+
+            requestAnimationFrame(update);
+        }
+
+        function gameOver() {
+            gameActive = false;
+            if(score > bestScore) {
+                bestScore = score;
+                localStorage.setItem("slime_jump_best", bestScore);
+            }
+            alert("GAME OVER! SCORE: " + score);
+            location.reload();
+        }
+
+        spawnObstacle();
+
+        // 広告更新設定
+        setInterval(() => {
+            ["ad-box-1", "ad-box-2"].forEach(id => {
+                const box = document.getElementById(id);
+                if (box && box.innerHTML.trim() !== "★") {
+                    const tag = box.innerHTML;
+                    box.innerHTML = "";
+                    setTimeout(() => { box.innerHTML = tag; }, 100);
+                }
+            });
+        }, 30000);
+    </script>
+</body>
+</html>
