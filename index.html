@@ -3,22 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Slime Jump Survival</title>
+    <title>Slime Jump Survival v2</title>
     <style>
         body { margin: 0; overflow: hidden; background: #e0f7fa; font-family: sans-serif; }
-        
-        /* 広告エリア */
         #ad-top { position: fixed; top: 0; left: 0; width: 100%; height: 110px; background: #333; z-index: 100; display: flex; align-items: center; justify-content: center; pointer-events: none; }
         #ad-bottom { position: fixed; bottom: 0; left: 0; width: 100%; height: 70px; background: #333; z-index: 100; display: flex; align-items: center; justify-content: center; pointer-events: none; }
         #ad-box-1, #ad-box-2 { pointer-events: auto; }
-        
         canvas { display: block; margin-top: 110px; background: #81d4fa; }
         #ui { position: absolute; top: 120px; left: 0; width: 100%; text-align: center; color: #01579b; font-size: 24px; font-weight: bold; pointer-events: none; }
-        
-        #startScreen {
-            position: absolute; top: 110px; left: 0; width: 100%; height: calc(100% - 180px);
-            background: rgba(255,255,255,0.8); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50;
-        }
+        #startScreen { position: absolute; top: 110px; left: 0; width: 100%; height: calc(100% - 180px); background: rgba(255,255,255,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; }
         #goButton { padding: 15px 40px; font-size: 24px; background: #0288d1; border: none; border-radius: 50px; color: white; font-weight: bold; cursor: pointer; }
     </style>
 </head>
@@ -33,7 +26,6 @@
 
     <div id="startScreen">
         <h1 style="color:#0288d1;">SLIME JUMP</h1>
-        <p>タップで左右に移動！</p>
         <button id="goButton">START</button>
         <p>BEST SCORE: <span id="best-ui">0</span></p>
     </div>
@@ -55,7 +47,7 @@
         let score = 0;
         let bestScore = localStorage.getItem("slime_jump_best") || 0;
         let gameActive = false;
-        let player = { x: canvas.width / 2, y: canvas.height - 50, size: 25, speed: 8, dir: 1 };
+        let player = { x: canvas.width / 2, y: canvas.height - 50, size: 25, speed: 7, dir: 1 };
         let obstacles = [];
         bestUi.innerText = bestScore;
 
@@ -64,48 +56,58 @@
             gameActive = true;
             score = 0;
             obstacles = [];
-            player.x = canvas.width / 2;
+            ui.innerText = "SCORE: 0";
+            spawnObstacle(); // ここで生成ループを開始
             update();
         };
 
-        // 画面タップで進行方向を反転
-        window.addEventListener("pointerdown", () => {
-            player.dir *= -1;
+        window.addEventListener("pointerdown", (e) => {
+            if(gameActive) player.dir *= -1;
         });
 
         function spawnObstacle() {
             if(!gameActive) return;
             const size = 30 + Math.random() * 20;
-            obstacles.push({ x: Math.random() * (canvas.width - size), y: -50, size: size, speed: 3 + Math.random() * 3 });
-            setTimeout(spawnObstacle, Math.max(300, 1000 - score * 10));
+            obstacles.push({ 
+                x: Math.random() * (canvas.width - size), 
+                y: -50, 
+                size: size, 
+                speed: 3 + (score / 10) // スコアが上がると少しずつ速くなる
+            });
+            
+            // 次の出現までの時間を計算
+            let nextSpawn = Math.max(400, 1200 - (score * 15));
+            setTimeout(spawnObstacle, nextSpawn);
         }
 
         function update() {
             if(!gameActive) return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // プレイヤー移動
             player.x += player.speed * player.dir;
-            if(player.x < 0 || player.x > canvas.width) player.dir *= -1; // 壁で跳ね返り
+            if(player.x < 25 || player.x > canvas.width - 25) player.dir *= -1;
 
-            // プレイヤー描画（スライム風）
             ctx.fillStyle = "#ff4081";
             ctx.beginPath();
             ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
             ctx.fill();
 
-            // 障害物移動・描画
-            obstacles.forEach((ob, i) => {
+            for(let i = obstacles.length - 1; i >= 0; i--) {
+                let ob = obstacles[i];
                 ob.y += ob.speed;
+                
                 ctx.fillStyle = "#37474f";
                 ctx.fillRect(ob.x, ob.y, ob.size, ob.size);
 
-                // 当たり判定
-                let dx = player.x - (ob.x + ob.size / 2);
-                let dy = player.y - (ob.y + ob.size / 2);
-                let distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < player.size + ob.size / 2) {
+                // 当たり判定の計算
+                let closestX = Math.max(ob.x, Math.min(player.x, ob.x + ob.size));
+                let closestY = Math.max(ob.y, Math.min(player.y, ob.y + ob.size));
+                let dx = player.x - closestX;
+                let dy = player.y - closestY;
+                
+                if ((dx * dx + dy * dy) < (player.size * player.size)) {
                     gameOver();
+                    return;
                 }
 
                 if(ob.y > canvas.height) {
@@ -113,8 +115,7 @@
                     score++;
                     ui.innerText = "SCORE: " + score;
                 }
-            });
-
+            }
             requestAnimationFrame(update);
         }
 
@@ -128,9 +129,6 @@
             location.reload();
         }
 
-        spawnObstacle();
-
-        // 広告更新設定
         setInterval(() => {
             ["ad-box-1", "ad-box-2"].forEach(id => {
                 const box = document.getElementById(id);
@@ -140,7 +138,7 @@
                     setTimeout(() => { box.innerHTML = tag; }, 100);
                 }
             });
-        }, 20050);
+        }, 20100);
     </script>
 </body>
 </html>
