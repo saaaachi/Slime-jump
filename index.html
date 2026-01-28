@@ -5,78 +5,109 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Slime Jump Survival v2</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #e0f7fa; font-family: sans-serif; touch-action: none; }
+        body { 
+            margin: 0; height: 100vh; display: flex; flex-direction: column; 
+            background: #e0f7fa; font-family: sans-serif; overflow: hidden; touch-action: none; 
+        }
         
-        /* 広告エリア：高さを150pxに設定（中サイズ対応） */
+        /* 上下の広告エリア：150pxを維持（中サイズにも対応可能） */
         #ad-top, #ad-bottom { 
-            position: fixed; left: 0; width: 100%; height: 150px; 
-            background: #333; z-index: 100; display: flex; align-items: center; justify-content: center; 
+            width: 100%; height: 150px; background: #333; 
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0; z-index: 100;
         }
-        #ad-top { top: 0; }
-        #ad-bottom { bottom: 0; }
-        
-        iframe { border: none; width: 100%; height: 150px; }
+        iframe { border: none; width: 100%; height: 100%; }
 
-        /* キャンバス：広告を避けて中央に配置 */
-        canvas { display: block; margin-top: 150px; background: #81d4fa; }
-        
-        #ui { position: absolute; top: 160px; left: 0; width: 100%; text-align: center; color: #01579b; font-size: 26px; font-weight: bold; pointer-events: none; text-shadow: 1px 1px 2px rgba(255,255,255,0.8); }
-        
-        #startScreen { 
-            position: absolute; top: 150px; left: 0; width: 100%; height: calc(100vh - 300px); 
-            background: rgba(255,255,255,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; 
+        /* ゲームエリア：残りの高さをすべて使う */
+        #game-area { 
+            flex-grow: 1; position: relative; width: 100%; background: #81d4fa; overflow: hidden;
         }
-        #goButton { padding: 15px 40px; font-size: 24px; background: #0288d1; border: none; border-radius: 50px; color: white; font-weight: bold; cursor: pointer; box-shadow: 0 4px #01579b; }
-        #best-info { margin-top: 15px; color: #01579b; font-weight: bold; }
+        
+        canvas { display: block; width: 100%; height: 100%; }
+        
+        #ui { position: absolute; top: 10px; width: 100%; text-align: center; color: #01579b; font-size: 26px; font-weight: bold; pointer-events: none; z-index: 10; text-shadow: 1px 1px 2px rgba(255,255,255,0.8); }
+        
+        /* メニュー画面：鉄壁レイアウト */
+        #menuScreen { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(255,255,255,0.95); display: flex; flex-direction: column; 
+            align-items: center; justify-content: space-between; z-index: 200; padding: 10px 0; box-sizing: border-box;
+        }
+
+        #ad-middle-container { 
+            width: 300px; height: 250px; background: #ddd;
+            display: none; justify-content: center; align-items: center; 
+            overflow: hidden; flex-shrink: 0; border: 1px solid #ccc;
+        }
+        
+        .btn-group { 
+            display: flex; flex-direction: column; align-items: center; gap: 8px; 
+            width: 100%; padding-bottom: 5px;
+        }
+        .menu-btn { padding: 12px 30px; font-size: 17px; border: none; border-radius: 50px; color: white; font-weight: bold; cursor: pointer; text-decoration: none; width: 220px; text-align: center; }
+        #goButton { background: #0288d1; box-shadow: 0 4px #01579b; }
+        .link-btn { background: #ff4081; box-shadow: 0 4px #c2185b; }
+        .best-info { color: #01579b; font-size: 18px; font-weight: bold; margin: 2px 0; }
     </style>
 </head>
 <body>
+    <div id="ad-top"><iframe src="ad.html" id="frame-top"></iframe></div>
 
-    <div id="ad-top"><iframe id="frame-top" src="ad.html"></iframe></div>
-    <div id="ad-bottom"><iframe id="frame-bottom" src="ad.html"></iframe></div>
+    <div id="game-area">
+        <div id="ui">SCORE: 0</div>
+        
+        <div id="menuScreen">
+            <div style="text-align:center;">
+                <h1 id="menuTitle" style="color:#0288d1; margin:0; font-size: 24px;">SLIME JUMP</h1>
+                <p id="menuMsg" style="margin:2px 0; font-size:14px;">タップで方向転換！</p>
+                <div class="best-info">BEST SCORE: <span id="best-ui">0</span></div>
+            </div>
 
-    <div id="startScreen">
-        <h1 style="color:#0288d1; margin-bottom: 10px;">SLIME JUMP</h1>
-        <p style="margin-bottom: 20px;">タップで方向転換！</p>
-        <button id="goButton">START</button>
-        <p id="best-info">BEST SCORE: <span id="best-ui">0</span></p>
+            <div id="ad-middle-container">
+                <script src="https://adm.shinobi.jp/s/1e6de436ea850948e238e975a93767eb"></script>
+            </div>
+
+            <div class="btn-group" id="btnGroup">
+                <button id="goButton" class="menu-btn">GAME START</button>
+                <a href="https://saaaachi.github.io/slime-math/" class="menu-btn link-btn">他のゲームはこちら</a>
+            </div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
     </div>
 
-    <div id="ui">SCORE: 0</div>
-    <canvas id="gameCanvas"></canvas>
+    <div id="ad-bottom"><iframe src="ad.html" id="frame-bottom"></iframe></div>
 
     <script>
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
-        const ui = document.getElementById("ui");
-        const startScreen = document.getElementById("startScreen");
-        const goButton = document.getElementById("goButton");
-        const bestUi = document.getElementById("best-ui");
+        const canvas = document.getElementById("gameCanvas"), ctx = canvas.getContext("2d"),
+              ui = document.getElementById("ui"), menuScreen = document.getElementById("menuScreen"),
+              menuTitle = document.getElementById("menuTitle"), menuMsg = document.getElementById("menuMsg"),
+              bestUi = document.getElementById("best-ui"), goButton = document.getElementById("goButton"),
+              adMid = document.getElementById("ad-middle-container"), btnGroup = document.getElementById("btnGroup");
 
-        // キャンバスサイズ設定（上下150pxずつ引く）
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight - 300;
+        let score = 0, bestScore = localStorage.getItem("slime_jump_best") || 0;
+        let gameActive = false, player, obstacles = [], spawnTimeout;
 
-        let score = 0;
-        let bestScore = localStorage.getItem("slime_jump_best") || 0;
-        let gameActive = false;
-        let player = { x: canvas.width / 2, y: canvas.height - 50, size: 22, speed: 7, dir: 1 };
-        let obstacles = [];
-        bestUi.innerText = bestScore;
+        function resize() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            player = { x: canvas.width / 2, y: canvas.height - 50, size: 22, speed: 7, dir: 1 };
+        }
+        window.onload = () => { resize(); bestUi.innerText = bestScore; adMid.style.display = "none"; };
+        window.onresize = resize;
 
         goButton.onclick = () => {
-            startScreen.style.display = "none";
+            menuScreen.style.display = "none";
+            adMid.style.display = "none";
             gameActive = true;
             score = 0;
             obstacles = [];
             ui.innerText = "SCORE: 0";
+            resize(); // 位置リセット
             spawnObstacle();
             update();
         };
 
-        // 操作：どこを触っても方向転換
         window.addEventListener("pointerdown", (e) => {
-            if(gameActive) player.dir *= -1;
+            if(gameActive && menuScreen.style.display === "none") player.dir *= -1;
         });
 
         function spawnObstacle() {
@@ -86,38 +117,32 @@
                 x: Math.random() * (canvas.width - size), 
                 y: -50, 
                 size: size, 
-                speed: 3 + (score / 15) // 徐々に加速
+                speed: 3 + (score / 15)
             });
-            
             let nextSpawn = Math.max(350, 1100 - (score * 12));
-            setTimeout(spawnObstacle, nextSpawn);
+            spawnTimeout = setTimeout(spawnObstacle, nextSpawn);
         }
 
         function update() {
             if(!gameActive) return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // プレイヤー移動と壁跳ね返り
             player.x += player.speed * player.dir;
             if(player.x < player.size || player.x > canvas.width - player.size) {
                 player.dir *= -1;
             }
 
-            // スライム描画
             ctx.fillStyle = "#ff4081";
             ctx.beginPath();
             ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
             ctx.fill();
 
-            // 敵の移動と判定
             for(let i = obstacles.length - 1; i >= 0; i--) {
                 let ob = obstacles[i];
                 ob.y += ob.speed;
-                
                 ctx.fillStyle = "#37474f";
                 ctx.fillRect(ob.x, ob.y, ob.size, ob.size);
 
-                // 当たり判定
                 let closestX = Math.max(ob.x, Math.min(player.x, ob.x + ob.size));
                 let closestY = Math.max(ob.y, Math.min(player.y, ob.y + ob.size));
                 let dx = player.x - closestX;
@@ -128,7 +153,6 @@
                     return;
                 }
 
-                // スコア加算
                 if(ob.y > canvas.height) {
                     obstacles.splice(i, 1);
                     score++;
@@ -140,22 +164,31 @@
 
         function gameOver() {
             gameActive = false;
+            clearTimeout(spawnTimeout);
             if(score > bestScore) {
                 bestScore = score;
                 localStorage.setItem("slime_jump_best", bestScore);
+                bestUi.innerText = bestScore;
             }
-            alert("GAME OVER! SCORE: " + score);
-            location.reload();
+            menuTitle.innerText = "GAME OVER";
+            menuTitle.style.color = "#f44336";
+            menuMsg.innerText = "SCORE: " + score;
+            goButton.innerText = "RETRY";
+
+            btnGroup.style.opacity = "0";
+            btnGroup.style.pointerEvents = "none";
+            adMid.style.display = "flex"; 
+            menuScreen.style.display = "flex";
+
+            setTimeout(() => {
+                btnGroup.style.opacity = "1";
+                btnGroup.style.pointerEvents = "auto";
+            }, 600);
         }
 
-        // 🚀 30秒ごとにad.htmlを強制リフレッシュ
         setInterval(() => {
-            ["frame-top", "frame-bottom"].forEach(id => {
-                const f = document.getElementById(id);
-                if(f) {
-                    const s = f.src; f.src = "about:blank";
-                    setTimeout(() => f.src = s, 100);
-                }
+            document.querySelectorAll('iframe').forEach(f => {
+                const s = f.src; f.src = "about:blank"; setTimeout(() => f.src = s, 100);
             });
         }, 30000);
     </script>
